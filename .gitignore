@@ -1,0 +1,11 @@
+# Python-generated files
+__pycache__/
+*.pyc
+
+# Runtime logs
+*.log
+
+# Local secrets and credentials
+.env
+.env.*
+*.pem
