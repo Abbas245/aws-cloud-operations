@@ -1,0 +1,14 @@
+[Unit]
+Description=AWS Operations Private Python App
+After=network.target
+
+[Service]
+Type=simple
+User=ssm-user
+WorkingDirectory=/home/ssm-user/app
+ExecStart=/usr/bin/python3 /home/ssm-user/app/server.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

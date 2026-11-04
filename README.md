@@ -1,76 +1,154 @@
+
 # AWS Cloud Operations & Automation Platform
 
 ## Project Overview
 
-A hands-on AWS Cloud Engineering project focused on building, operating, monitoring, and automating cloud infrastructure.
+A hands-on AWS Cloud Engineering project focused on designing, deploying, securing, monitoring, and troubleshooting a two-tier cloud application.
 
-The goal is to develop practical skills in AWS networking, Linux administration, cloud security, scripting, and incident response.
+The project demonstrates AWS networking, Linux administration, Python and Bash automation, service recovery, monitoring, and incident troubleshooting.
 
 ## Architecture
 
-- AWS Region: us-east-1
-- VPC: 10.0.0.0/16
-- Public Subnet: 10.0.1.0/24
-- Private Subnet: 10.0.2.0/24
-- Internet Gateway and route tables
-- EC2 Ubuntu 24.04 LTS web server
-- IAM role for Systems Manager
-- Security Groups controlling network access
-- Nginx web server hosting a custom HTML page
+**Region:** AWS us-east-1 (N. Virginia)
+
+```text
+             Client / Internet
+                    |
+             Internet Gateway
+                    |
+          Public Subnet 10.0.1.0/24
+                    |
+              Web EC2 (Nginx)
+             Static Website /
+                    |
+          Reverse Proxy /app/
+                    |
+            Private TCP 8080
+                    |
+         Private Subnet 10.0.2.0/24
+                    |
+             App EC2 (Python)
+               systemd service
+
+     Amazon CloudWatch: EC2 CPU Monitoring
+```
+
+The private application server has no public IPv4 address. Network access is restricted through Security Groups.
+
+See [Architecture Documentation](docs/architecture.md) for details.
 
 ## Implemented Features
 
-### 1. AWS Infrastructure
-- Created a custom VPC and public/private subnets
-- Configured public internet routing
-- Configured Security Groups
-- Launched Ubuntu EC2 in the public subnet
-- Established remote access using AWS Session Manager
+### 1. AWS Networking and Security
 
-### 2. Web Server Deployment
-- Installed and configured Nginx
-- Deployed a custom HTML webpage
-- Verified local and browser-based HTTP access
+- Created a custom VPC (`10.0.0.0/16`).
+- Configured public and private subnets.
+- Configured Internet Gateway and route tables.
+- Implemented Security Group rules between application tiers.
+- Tested public and private EC2 communication.
+- Configured and tested a NAT Gateway for private outbound Internet access.
+- Configured SSM Interface VPC Endpoints for private AWS management access.
+- Used IAM roles and Session Manager for EC2 administration.
 
-### 3. Bash Automation
-- Created a Nginx service health-check script
-- Implemented automatic service recovery
-- Scheduled recovery checks every minute using cron
-- Tested failure detection and successful recovery
+### 2. Web Server and Reverse Proxy
 
-### 4. Python Monitoring
-- Created a Python HTTP health-check script
-- Tested successful and failed HTTP connections
-- Implemented exit codes for automation integration
-- Recorded basic health-check logs
+- Deployed an Ubuntu EC2 instance with Nginx.
+- Hosted a custom static HTML website.
+- Configured Nginx to forward `/app/` requests to the private Python application.
+- Verified communication between public and private EC2 instances.
+- Confirmed external browser access through Nginx.
+
+### 3. Linux and Bash Automation
+
+- Developed Nginx health-check and recovery scripts.
+- Scheduled automated recovery checks using cron.
+- Tested Nginx failure detection and recovery.
+- Configured a Python application as a systemd service.
+- Enabled automatic application startup during EC2 boot.
+- Verified automatic recovery after terminating the Python process.
+
+### 4. Python Application and Monitoring
+
+- Deployed a Python HTTP server on private EC2 port 8080.
+- Developed a Python HTTP health-check script with exit codes.
+- Tested successful and failed HTTP connections.
+- Implemented basic health-check logging.
+
+### 5. Amazon CloudWatch
+
+- Explored EC2 CPU utilization metrics.
+- Created a CPU utilization alarm using a 10% threshold.
+- Configured a five-minute evaluation period.
+- Generated controlled CPU activity.
+- Verified alarm transition from OK to ALARM.
+- Verified automatic return to OK after CPU usage decreased.
+
+The 10% threshold was chosen for testing, not as a production recommendation. No email notification action was configured.
+
+## Troubleshooting and Validation
+
+| Scenario | Observed Result |
+|---|---|
+| Private application responds locally | HTTP 200 |
+| Web EC2 connects to private application | Successful |
+| Nginx reverse proxy forwards `/app/` | HTTP 200 |
+| Private Python application stopped | HTTP 502 from Nginx |
+| Python application restored | HTTP 200 without Nginx restart |
+| Python process forcibly terminated | systemd restarted process |
+| EC2 operating system rebooted | Python service started automatically |
+| Private EC2 accessed without NAT | Session Manager worked via VPC Endpoints |
+| Controlled CPU usage exceeded threshold | CloudWatch entered ALARM |
+| CPU usage returned to normal | CloudWatch returned to OK |
 
 ## Repository Structure
 
-    scripts/
-    ├── bash/
-    │   ├── nginx-health.sh
-    │   └── nginx-recovery.sh
-    └── python/
-        └── website-health.py
+```text
+aws-cloud-operations/
+├── app/
+│   └── server.py
+├── config/
+│   ├── aws-operations-app.service
+│   └── nginx-reverse-proxy.conf
+├── docs/
+│   └── architecture.md
+├── scripts/
+│   ├── bash/
+│   │   ├── nginx-health.sh
+│   │   └── nginx-recovery.sh
+│   └── python/
+│       └── website-health.py
+├── .gitignore
+└── README.md
+```
+
+The repository includes a functionally equivalent reconstruction of the Python application and the configuration used in the exercises. The Nginx file is a configuration snippet intended to be inserted into an existing server block.
 
 ## Technologies Used
 
-AWS VPC | EC2 | IAM | Systems Manager | Ubuntu Linux |
-Nginx | Bash | Python | Cron | Git | GitHub
+**AWS:** VPC, EC2, IAM, Systems Manager, CloudWatch, NAT Gateway, Interface VPC Endpoints, Security Groups
 
-## Project Roadmap
+**Operating System:** Ubuntu Linux 24.04 LTS
 
-- [x] AWS networking and basic EC2 deployment
-- [x] Nginx website deployment
-- [x] Bash health checks and scheduled service recovery
-- [x] Python HTTP health checks and exit codes
-- [x] Initial GitHub repository and automation scripts
-- [ ] Private application server and network security testing
-- [ ] CloudWatch monitoring, logs, and alarms
-- [ ] Python monitoring improvements
-- [ ] CI/CD and Infrastructure as Code
-- [ ] Production-style validation and documentation
+**Web and Application:** Nginx, Python HTTP Server
 
-## Current Status
+**Automation:** Bash, Python, cron, systemd
 
-Active development — infrastructure and core service automation implemented. Monitoring integration and advanced architecture are in progress.
+**Version Control:** Git, GitHub
+
+## Security and Operational Considerations
+
+- Private application instances are not directly exposed to the Internet.
+- Application traffic between EC2 instances is controlled by Security Groups.
+- Session Manager provides administrative access without inbound SSH.
+- The demonstration's HTTP access was restricted to a specific client IP address.
+- Production deployments should use HTTPS with valid TLS certificates, appropriate monitoring thresholds, and additional security controls.
+- Temporary NAT Gateway and SSM Interface VPC Endpoints were deleted after testing to reduce costs.
+- Stopped EC2 instances can still incur storage-related charges.
+
+## Project Status
+
+**Hands-on implementation and core operational tests completed.**
+
+This project demonstrates a two-tier AWS application with Linux service automation, private networking, reverse proxy routing, CloudWatch monitoring, and verified troubleshooting scenarios.
+
+It is a learning and portfolio project, not a production-ready deployment.
